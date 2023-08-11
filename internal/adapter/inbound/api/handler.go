@@ -2,27 +2,29 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/tiagosberg/golang-example/pkg/http/result"
 	"net/http"
+
+	"github.com/tiagosberg/golang-example/pkg/http/result"
 
 	"github.com/go-chi/chi"
 	"github.com/google/uuid"
 
-	. "github.com/tiagosberg/golang-example/internal/core/person"
+	"github.com/tiagosberg/golang-example/internal/core/dto"
+	"github.com/tiagosberg/golang-example/internal/core/port/driving"
 )
 
-func CreatePerson(s Service) http.HandlerFunc {
+func CreatePerson(s driving.PersonService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		var cmd CreatePersonCommand
+		var cmd dto.CreatePersonCommand
 		if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
-			result.InternalServerError(w)
+			result.BadRequest(w, err)
 			return
 		}
 
 		person, err := s.Create(cmd)
 		if err != nil {
-			result.BadRequest(w, err)
+			result.InternalServerError(w)
 			return
 		}
 
@@ -30,16 +32,20 @@ func CreatePerson(s Service) http.HandlerFunc {
 	}
 }
 
-func FindPerson(s Service) http.HandlerFunc {
+func FindPerson(s driving.PersonService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		id, err := uuid.Parse(chi.URLParam(r, "id"))
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			result.BadRequest(w, err)
 			return
 		}
 
-		person, _ := s.Find(FindPersonQuery{Id: id})
+		person, err := s.Find(dto.FindPersonQuery{Id: id})
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		if person == nil {
 			result.NotFound(w)
 			return
@@ -49,12 +55,12 @@ func FindPerson(s Service) http.HandlerFunc {
 	}
 }
 
-func GetPersons(s Service) http.HandlerFunc {
+func GetPersons(s driving.PersonService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		persons, err := s.Get(GetPersonsQuery{})
+		persons, err := s.Get(dto.GetPersonsQuery{})
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			result.BadRequest(w, err)
 			return
 		}
 
